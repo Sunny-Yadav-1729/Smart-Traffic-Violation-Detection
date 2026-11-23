@@ -1,5 +1,6 @@
 streamlit
 ultralytics
+lap
 kagglehub
 opencv-python-headless
 numpy

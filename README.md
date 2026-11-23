@@ -11,6 +11,9 @@ streamlit run app.py
 - yolov8n.pt        -> downloaded automatically on first run (vehicles, traffic light)
 - violations/       -> captured violation photos (auto-created)
 
+`lap` is installed with the requirements and provides the linear-assignment
+solver used by Ultralytics ByteTrack.
+
 ## Train the helmet model
 `train_helmet.py` downloads the labeled Kaggle Helmet Detection dataset, converts
 its Pascal VOC annotations to YOLO format, trains for 50 epochs, and copies
