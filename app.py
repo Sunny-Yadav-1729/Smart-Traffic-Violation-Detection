@@ -22,6 +22,7 @@ st.set_page_config(page_title="Smart Traffic Violation Detection", layout="wide"
 
 SAVE_DIR = "violations"
 os.makedirs(SAVE_DIR, exist_ok=True)
+DEMO_VIDEO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "demo_video.mp4")
 
 # COCO class ids used by the pretrained YOLOv8 model
 VEHICLES = {1: "bicycle", 2: "car", 3: "motorcycle", 5: "bus", 7: "truck"}
@@ -117,8 +118,19 @@ with st.sidebar:
     detect_red = False
     detect_helmet = st.checkbox("Detect helmet violation", True)
 
-video_file = st.file_uploader("Upload traffic video", type=["mp4", "avi", "mov", "mkv"])
-start = st.button("▶️ Start Detection", type="primary", disabled=video_file is None)
+video_source = st.radio("Video source", ["Upload a video", "Try the built-in demo"])
+video_file = None
+if video_source == "Upload a video":
+    video_file = st.file_uploader("Upload traffic video", type=["mp4", "avi", "mov", "mkv"])
+    video_available = video_file is not None
+else:
+    video_available = os.path.isfile(DEMO_VIDEO)
+    if video_available:
+        st.video(DEMO_VIDEO)
+    else:
+        st.warning("The built-in demo video (demo_video.mp4) was not found.")
+
+start = st.button("▶️ Start Detection", type="primary", disabled=not video_available)
 
 video_ph = st.empty()          # annotated video frames
 status_ph = st.empty()         # progress / signal status
@@ -130,13 +142,19 @@ if "violations" not in st.session_state:
 # --------------------------------------------------------------------------
 # Processing
 # --------------------------------------------------------------------------
-if start and video_file is not None:
+if start and video_available:
     st.session_state.violations = []
     violations = st.session_state.violations
 
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
-    tmp.write(video_file.read())
-    tmp.close()
+    temp_video_path = None
+    if video_file is not None:
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+        tmp.write(video_file.read())
+        tmp.close()
+        temp_video_path = tmp.name
+        video_path = temp_video_path
+    else:
+        video_path = DEMO_VIDEO
 
     vmodel = load_model(vehicle_weights)
     hmodel = None
@@ -147,7 +165,7 @@ if start and video_file is not None:
 
     no_helmet_set = {n.strip().lower() for n in no_helmet_names.split(",")}
 
-    cap = cv2.VideoCapture(tmp.name)
+    cap = cv2.VideoCapture(video_path)
     fps = cap.get(cv2.CAP_PROP_FPS) or 25
     total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 1
     H = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -255,7 +273,8 @@ if start and video_file is not None:
                            f"Red light: {len(red_done)}  |  No helmet: {len(helmet_done)}")
 
     cap.release()
-    os.unlink(tmp.name)
+    if temp_video_path is not None:
+        os.unlink(temp_video_path)
     progress.progress(1.0)
     st.success("Processing finished ✅")
 
